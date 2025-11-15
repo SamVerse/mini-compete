@@ -10,6 +10,8 @@ import { BullModule } from '@nestjs/bull';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { IdempotencyMiddleware } from './idempotency/idempotency.middleware';
 import { UserModule } from './user/user.module';
+import { TasksModule } from './tasks/tasks.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 
 @Module({
@@ -32,6 +34,8 @@ import { UserModule } from './user/user.module';
     RegistrationModule,
     QueueModule,
     UserModule,
+    ScheduleModule.forRoot(),
+    TasksModule,
   ],
   controllers: [],
   providers: [],
