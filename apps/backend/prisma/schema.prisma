@@ -1,0 +1,83 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- Enums ---
+
+enum Role {
+  PARTICIPANT
+  ORGANIZER
+}
+
+// --- Models ---
+
+// 1. User Model
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  name          String
+  password      String         
+  role          Role           @default(PARTICIPANT)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  Competitions  Competition[] 
+  Registrations Registration[] 
+  MailBox       MailBox[]      
+
+  @@map("users")
+}
+
+// 2. Competition Model
+model Competition {
+  id            Int            @id @default(autoincrement())
+  title         String
+  description   String
+  tags          String[]       @default([]) @db.Text
+  capacity      Int
+  regDeadline   DateTime
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  organizerId   Int
+  organizer     User           @relation(fields: [organizerId], references: [id])
+  registrations Registration[] 
+
+  @@map("competitions")
+}
+
+// 3. Registration Model 
+model Registration {
+  id            Int          @id @default(autoincrement())
+  registeredAt  DateTime     @default(now())
+
+  // Relations
+  userId        Int
+  user          User         @relation(fields: [userId], references: [id])
+  competitionId Int
+  competition   Competition  @relation(fields: [competitionId], references: [id])
+  
+  @@unique([userId, competitionId]) 
+  @@map("registrations")
+}
+
+// 4. MailBox Model 
+model MailBox {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  to        String
+  subject   String
+  body      String
+  sentAt    DateTime @default(now())
+
+  @@map("mailboxes")
+}
