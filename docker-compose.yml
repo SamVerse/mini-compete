@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: mini_compete_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: minicompete
+    ports:
+      - "5432:5432" # Exposes Postgres to your local machine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Redis for BullMQ
+  redis:
+    image: redis:6-alpine
+    container_name: mini_compete_redis
+    ports:
+      - "6379:6379" # Exposes Redis to your local machine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
