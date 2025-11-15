@@ -4,6 +4,9 @@ import { Role } from '@prisma/client';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { RolesGuard } from 'src/auth/guards/roles/roles.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth/jwt-auth.guard';
+import { GetUser } from 'src/auth/decorators/get-user/get-user.decorator';
+import type { JwtUser } from 'src/auth/decorators/get-user/get-user.decorator';
+
 
 
 class CreateCompetitionDto {
@@ -22,11 +25,12 @@ export class CompetitionsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ORGANIZER)
   @Post()
-  createCompetition(@Body() dto: CreateCompetitionDto) {
-    // NOTE: The organizerId should be pulled from req.user
-    // We will pass a dummy organizerId for now and update later when we implement the full DTO/Request structure.
-    const DUMMY_ORGANIZER_ID = 1; 
-    return this.competitionService.create(dto, DUMMY_ORGANIZER_ID); 
+  createCompetition(
+    @Body() dto: CreateCompetitionDto,
+    @GetUser() user: JwtUser, 
+  ) {
+    // Now we get the organizerId from the authenticated user
+    return this.competitionService.create(dto, user.userId); 
   }
 
 //  GET /api/competitions (Public)

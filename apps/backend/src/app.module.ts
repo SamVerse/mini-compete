@@ -9,6 +9,7 @@ import { QueueModule } from './queue/queue.module';
 import { BullModule } from '@nestjs/bull';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { IdempotencyMiddleware } from './idempotency/idempotency.middleware';
+import { UserModule } from './user/user.module';
 
 
 @Module({
@@ -30,6 +31,7 @@ import { IdempotencyMiddleware } from './idempotency/idempotency.middleware';
     CompetitionsModule,
     RegistrationModule,
     QueueModule,
+    UserModule,
   ],
   controllers: [],
   providers: [],
