@@ -1,135 +1,102 @@
-# Turborepo starter
+**Structure:** Monorepo with multiple apps and shared packages. The main apps are `apps/backend` and `apps/frontend`.
 
-This Turborepo starter is maintained by the Turborepo core team.
+**Quick Start (local, Windows PowerShell)**
+- Start supporting services (Postgres, Redis):
 
-## Using this example
-
-Run the following command:
-
-```sh
-npx create-turbo@latest
+```powershell
+docker compose up -d
 ```
 
-## What's inside?
+- Install dependencies and start development servers from repository root:
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+```powershell
+npm install
+npm run dev
 ```
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
-
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+To run backend
+```powershell
+npm run start:dev
 ```
 
-### Develop
+**RUNNING-APP**
+You should now have Docker yaml , backend and frontend running in the terminal.
 
-To develop all apps and packages, run the following command:
+- Notes:
+  - `npm run dev` uses `turbo` and will run `dev` scripts for workspace apps.
+  - Backend default port: `3001`. Frontend default port: `3000`.
 
-```
-cd my-turborepo
+**Database and seeding**
+- Example env file: `apps/backend/.env.example` (copy to `apps/backend/.env` and adjust if needed).
+- Apply migrations and generate Prisma client (run from `apps/backend`):
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
-
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```powershell
+cd apps/backend
+npx prisma generate
+npx prisma migrate deploy
+npx ts-node prisma/seed.ts    # seeds sample users and competitions
 ```
 
-### Remote Caching
+**Environment variables (important)**
+- `DATABASE_URL` : Postgres connection (see `.env.example`).
+- `REDIS_HOST`, `REDIS_PORT` : Redis connection for BullMQ and idempotency.
+- `JWT_SECRET` : secret used for signing auth tokens.
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+**helpers**
+- Postman collections are included in the repo root for quick API testing (`Mini Compete.postman_collection.json`).
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+**Architecture Notes**
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+Idempotency
 
-```
-cd my-turborepo
+- The registration endpoint supports idempotency to prevent duplicate submissions from the same client. A custom NestJS middleware handles this using Redis:
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
+- The client sends an Idempotency-Key header.
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
+- The middleware uses SETNX to create a temporary processing lock for that key.
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+- If the key is new, the request executes normally.
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+- After the controller finishes successfully, the middleware stores the final { status, body } response under result:<key>.
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
+- If the same key appears again, the stored response is returned immediately without running registration logic again.
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
+- If a request with the same key is still being processed, the middleware returns a 409.
 
-## Useful Links
+- Idempotency protects against retries and duplicate client actions, but it does not prevent overselling because each user sends a different key.
 
-Learn more about the power of Turborepo:
+----
+-------------
 
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+
+Concurrency and Oversell Prevention
+
+-> To prevent two users from taking the same seat at the same time, the registration logic runs inside a Prisma transaction and uses an atomic conditional update:
+1. The transaction locks the competition row FOR UPDATE to prevent concurrent modifications.
+2. It checks if the user is already registered.
+3. It counts current registrations.
+4. If there is capacity, it creates the registration.
+This ensures that even if multiple users try to register simultaneously, the database will serialize their transactions and prevent overselling.
+
+
+------
+
+**Tradeoffs**
+
+Idempotency
+
+- Good for preventing duplicate submissions.
+
+- Ensures safe retries.
+    
+- Does not protect shared resources between different users.
+
+Atomic Update
+
+- Simple and safe with Prisma.
+
+- Prevents overselling reliably.
+
+- Less flexible than low-level row locks but avoids raw SQL and works well for this use case.
+
+

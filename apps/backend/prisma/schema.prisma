@@ -40,6 +40,7 @@ model Competition {
   title         String
   description   String
   tags          String[]       @default([]) @db.Text
+  seatsTaken    Int            @default(0)
   capacity      Int
   regDeadline   DateTime
   

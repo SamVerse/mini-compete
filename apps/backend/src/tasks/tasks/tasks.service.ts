@@ -13,8 +13,6 @@ export class TasksService {
     @InjectQueue('registration') private registrationQueue: Queue,
   ) {}
 
-  // Runs every minute for easy development testing
-  // For production (every night), use: CronExpression.CRON_0_0_*
   @Cron(CronExpression.EVERY_MINUTE)
   async handleCompetitionReminders() {
     this.logger.log('CRON: Checking for competition reminders to send...');
@@ -25,15 +23,14 @@ export class TasksService {
 
     const upcomingCompetitions = await this.prisma.competition.findMany({
       where: {
-        // NOTE: This logic is simple; real-world would use a proper start date.
-        // For this assignment, we'll assume regDeadline is the event start.
+        //  we'll assume regDeadline is when we will send reminders.
         regDeadline: {
           gte: now,
           lte: in24Hours,
         },
       },
       include: {
-        registrations: { // Get all registered users
+        registrations: { 
           include: {
             user: true,
           },
@@ -53,15 +50,14 @@ export class TasksService {
       for (const reg of competition.registrations) {
         // 3. Add a *new job type* to our *existing* queue
         await this.registrationQueue.add(
-          'reminder:notify', // Job name
-          { // Payload
+          'reminder:notify', 
+          { 
             userId: reg.userId,
             email: reg.user.email,
             userName: reg.user.name,
             competitionTitle: competition.title,
           },
           {
-            // Don't retry reminders, just send once
             attempts: 1, 
           },
         );
